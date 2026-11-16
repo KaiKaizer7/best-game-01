@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EMBERHOLD — Last Light of the Hollow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #07081a; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #e8e4ff; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #app { position: relative; width: 1280px; height: 720px; display: flex; background: #0d1026; }
+  #stage { position: relative; width: 960px; height: 720px; }
+  #game { display: block; width: 960px; height: 720px; cursor: crosshair; }
+  #panel {
+    width: 320px; height: 720px; padding: 12px 14px 10px; overflow-y: auto;
+    background: linear-gradient(180deg, #141a38, #0d1026);
+    border-left: 1px solid #2a3358; display: flex; flex-direction: column; gap: 9px;
+  }
+  #panel h1 { font-size: 22px; letter-spacing: 2px; color: #ffb347; }
+  #panel h1 span { display: block; font-size: 11px; letter-spacing: 3px; color: #8f9bd6; text-transform: uppercase; margin-top: 2px; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: #1a2044; border: 1px solid #2a3358; border-radius: 8px; padding: 6px 10px; }
+  .stat .label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #8f9bd6; }
+  .stat .value { font-size: 17px; font-weight: 700; color: #ffe9a8; margin-top: 1px; }
+  .core-wrap { height: 8px; background: #241a2e; border-radius: 4px; margin-top: 6px; overflow: hidden; }
+  #core-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #ffb347, #ff8c1a); border-radius: 4px; transition: width .3s; }
+  #core-bar.low { background: linear-gradient(90deg, #ff5d5d, #c4005a); }
+  .section-title { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #8f9bd6; margin-top: 2px; }
+  #palette { display: flex; flex-direction: column; gap: 8px; }
+  .tower-card {
+    position: relative; text-align: left; cursor: pointer; color: #e8e4ff;
+    background: #1a2044; border: 1px solid #2a3358; border-radius: 10px; padding: 8px 12px 8px 34px;
+  }
+  .tower-card:hover { border-color: #ffb347; }
+  .tower-card.active { border-color: #ffb347; background: #2a2140; box-shadow: 0 0 0 1px #ffb347 inset; }
+  .tower-card.poor { opacity: 0.55; }
+  .tower-dot { position: absolute; left: 12px; top: 13px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+  .tower-name { font-weight: 700; font-size: 14px; }
+  .tower-cost { float: right; color: #ffd34d; font-weight: 700; }
+  .tower-blurb { display: block; font-size: 12px; color: #b9c0e8; margin-top: 3px; line-height: 1.35; }
+  .tower-key {
+    position: absolute; right: 10px; bottom: 8px; font-size: 10px; color: #8f9bd6;
+    border: 1px solid #2a3358; border-radius: 4px; padding: 1px 5px;
+  }
+  #selected { background: #1a2044; border: 1px solid #2a3358; border-radius: 10px; padding: 10px 12px; min-height: 88px; }
+  #selected h3 { font-size: 15px; color: #ffe9a8; margin-bottom: 4px; }
+  #selected p { font-size: 12.5px; color: #b9c0e8; line-height: 1.45; }
+  .muted { color: #8f9bd6; }
+  .row { display: flex; gap: 8px; margin-top: 10px; }
+  .btn {
+    cursor: pointer; border: 1px solid #ffb347; background: #ff8c1a; color: #1a0f08;
+    font-weight: 700; font-size: 14px; border-radius: 8px; padding: 10px 12px; width: 100%;
+  }
+  .btn:hover:not(:disabled) { background: #ffb347; }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+  .btn.small { width: auto; padding: 8px 10px; font-size: 13px; }
+  .btn.ghost { background: transparent; color: #ffb347; border-color: #5a4a2a; }
+  .btn.ghost:hover { background: #2a2140; }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row .btn { font-size: 12.5px; padding: 8px 6px; }
+  .keys { font-size: 11px; color: #8f9bd6; line-height: 1.55; }
+  .keys b { color: #e8e4ff; }
+  .overlay {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(5, 6, 20, 0.78); backdrop-filter: blur(2px); z-index: 10;
+  }
+  .overlay.hidden { display: none; }
+  .card {
+    width: 560px; text-align: center; background: linear-gradient(180deg, #1a2044, #0d1026);
+    border: 1px solid #ffb34766; border-radius: 16px; padding: 34px 40px; box-shadow: 0 0 60px rgba(255, 140, 26, 0.25);
+  }
+  .card h2 { font-size: 40px; letter-spacing: 4px; color: #ffb347; }
+  .card h2.small { font-size: 30px; }
+  .card .sub { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: #8f9bd6; margin: 6px 0 16px; }
+  .card p { font-size: 14.5px; line-height: 1.6; color: #c9d2ff; margin-bottom: 12px; }
+  .card .big { font-size: 34px; font-weight: 800; color: #ffe9a8; margin: 8px 0 4px; }
+  .card .btn { width: auto; padding: 12px 28px; font-size: 16px; margin-top: 10px; }
+  .howto { text-align: left; font-size: 13px; line-height: 1.75; color: #b9c0e8; margin: 6px auto 4px; display: inline-block; }
+  .howto b { color: #ffe9a8; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="game" width="960" height="720"></canvas>
+    <div class="overlay" id="overlay-title">
+      <div class="card">
+        <h2>EMBERHOLD</h2>
+        <div class="sub">Last Light of the Hollow</div>
+        <p>Night falls on the Hollow, and the shadows are marching on your Ember Core.
+        Raise spires of living fire, lanterns of cold light and heavy mortars along the road —
+        and hold the light through all twelve waves.</p>
+        <div class="howto">
+          <b>Build:</b> click a glowing plot, pick a tower (keys 1–3)<br>
+          <b>Fight:</b> press Space or Sound the horn to start a wave<br>
+          <b>Win:</b> survive wave 12 &nbsp;·&nbsp; <b>Lose:</b> the Core falls to 0 HP<br>
+          <b>Speed:</b> F toggles 2× &nbsp;·&nbsp; <b>Pause:</b> P &nbsp;·&nbsp; <b>Mute:</b> M &nbsp;·&nbsp; <b>Restart:</b> R
+        </div>
+        <br>
+        <button class="btn" id="btn-start">Light the Hearth</button>
+      </div>
+    </div>
+    <div class="overlay hidden" id="overlay-victory">
+      <div class="card">
+        <h2 class="small">THE LIGHT HOLDS</h2>
+        <div class="sub">All twelve waves broken</div>
+        <div class="big" id="final-score">0</div>
+        <p id="final-detail"></p>
+        <button class="btn" id="btn-again">Play Again</button>
+      </div>
+    </div>
+    <div class="overlay hidden" id="overlay-defeat">
+      <div class="card">
+        <h2 class="small">THE LIGHT FALLS</h2>
+        <div class="sub">The Hollow goes dark</div>
+        <p id="defeat-wave"></p>
+        <p id="defeat-detail"></p>
+        <button class="btn" id="btn-retry">Try Again</button>
+      </div>
+    </div>
+    <div class="overlay hidden" id="overlay-pause">
+      <div class="card">
+        <h2 class="small">PAUSED</h2>
+        <div class="sub">The shadows wait</div>
+        <button class="btn" id="btn-resume">Resume</button>
+      </div>
+    </div>
+  </div>
+  <aside id="panel">
+    <h1>EMBERHOLD<span>Last Light of the Hollow</span></h1>
+    <div class="stats">
+      <div class="stat"><div class="label">Wave</div><div class="value" id="stat-wave">—</div></div>
+      <div class="stat"><div class="label">Gold</div><div class="value" id="stat-gold">220g</div></div>
+      <div class="stat"><div class="label">Core HP</div><div class="value" id="stat-core">20 / 20</div><div class="core-wrap"><div id="core-bar"></div></div></div>
+      <div class="stat"><div class="label">Score</div><div class="value" id="stat-score">0</div></div>
+      <div class="stat"><div class="label">Banished</div><div class="value" id="stat-kills">0</div></div>
+      <div class="stat"><div class="label">Goal</div><div class="value" style="font-size:14px; padding-top:3px;">Survive 12 waves</div></div>
+    </div>
+    <div class="section-title">Build towers</div>
+    <div id="palette"></div>
+    <div id="selected"></div>
+    <button class="btn" id="btn-wave">Sound the horn — Wave 1</button>
+    <div class="btn-row">
+      <button class="btn ghost" id="btn-speed">Speed 1×</button>
+      <button class="btn ghost" id="btn-pause">Pause (P)</button>
+      <button class="btn ghost" id="btn-mute">Mute (M)</button>
+    </div>
+    <button class="btn ghost" id="btn-restart">Restart (R)</button>
+    <div class="keys">
+      <b>1 / 2 / 3</b> pick a tower · <b>Click</b> a glowing plot to build<br>
+      <b>Click</b> a tower to upgrade or sell · <b>Right-click</b> to cancel<br>
+      <b>Space</b> start wave · <b>F</b> fast-forward · <b>P</b> pause
+    </div>
+  </aside>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
